@@ -92,3 +92,10 @@ Save ethereum address in the .env:
 ```conf
 ETHEREUM_ADDRESS="YOUR PUBLIC !!! NOT PRIVATE !!! ETHEREUM ADDRESS STARTING WITH 0x 0x0d0..."
 ```
+
+### RUN CODE
+
+```shell
+cd program # if not already in program folder
+python3 main.py
+```
