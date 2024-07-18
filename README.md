@@ -83,7 +83,7 @@ SECRET_PHRASE = "a bunch of your words"
 Later in the course, save your Telegram token and chat ID in the .env:
 
 ```conf
-TELEGRAM_TOKEN = "ENTER YOUR TOKEN: will look something like 5860779723:AAGABUQiYet-jI9txy20-hAsEgt7NypNwUI"
+TELEGRAM_TOKEN = "ENTER YOUR TOKEN: will look something like 5860211111:AAGABUQiYet-jI9txy20-hCEgt7NypNwUI"
 TELEGRAM_CHAT_ID = "ENTER YOUR CHAT ID: 5236746578"
 ```
 
