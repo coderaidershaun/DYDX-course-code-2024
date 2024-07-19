@@ -1,17 +1,18 @@
 from constants import ZSCORE_THRESH, USD_PER_TRADE, USD_MIN_COLLATERAL
 from func_utils import format_number
-from func_public import get_candles_recent
 from func_cointegration import calculate_zscore
-from func_private import is_open_positions
+from func_public import get_candles_recent, get_markets
+from func_private import is_open_positions, get_account
 from func_bot_agent import BotAgent
 import pandas as pd
 import json
 
 from pprint import pprint
 
+IGNORE_ASSETS = ["BTC-USD_x", "BTC-USD_y"] # Ignore these assets which are not trading on testnet
 
 # Open positions
-def open_positions(client):
+async def open_positions(client):
 
   """
     Manage finding triggers for trade entry
@@ -22,7 +23,7 @@ def open_positions(client):
   df = pd.read_csv("cointegrated_pairs.csv")
 
   # Get markets from referencing of min order size, tick size etc
-  markets = client.public.get_markets().data
+  markets = await get_markets(client)
 
   # Initialize container for BotAgent results
   bot_agents = []
@@ -45,9 +46,17 @@ def open_positions(client):
     hedge_ratio = row["hedge_ratio"]
     half_life = row["half_life"]
 
+    # Continue if ignore asset
+    if base_market in IGNORE_ASSETS or quote_market in IGNORE_ASSETS:
+      continue
+
     # Get prices
-    series_1 = get_candles_recent(client, base_market)
-    series_2 = get_candles_recent(client, quote_market)
+    try:
+      series_1 = await get_candles_recent(client, base_market)
+      series_2 = await get_candles_recent(client, quote_market)
+    except Exception as e:
+      print(e)
+      continue
 
     # Get ZScore
     if len(series_1) > 0 and len(series_1) == len(series_2):
@@ -58,8 +67,8 @@ def open_positions(client):
       if abs(z_score) >= ZSCORE_THRESH:
 
         # Ensure like-for-like not already open (diversify trading)
-        is_base_open = is_open_positions(client, base_market)
-        is_quote_open = is_open_positions(client, quote_market)
+        is_base_open = await is_open_positions(client, base_market)
+        is_quote_open = await is_open_positions(client, quote_market)
 
         # Place trade
         if not is_base_open and not is_quote_open:
@@ -92,18 +101,20 @@ def open_positions(client):
           base_size = format_number(base_quantity, base_step_size)
           quote_size = format_number(quote_quantity, quote_step_size)
 
-          # Ensure size
-          base_min_order_size = markets["markets"][base_market]["minOrderSize"]
-          quote_min_order_size = markets["markets"][quote_market]["minOrderSize"]
-          check_base = float(base_quantity) > float(base_min_order_size)
-          check_quote = float(quote_quantity) > float(quote_min_order_size)
+          # Ensure size (minimum order size greater than $1 according to V4 documentation)
+          base_min_order_size = 1 / float(markets["markets"][base_market]["oraclePrice"])
+          quote_min_order_size = 1 / float(markets["markets"][quote_market]["oraclePrice"])
+
+          # Combine checks
+          check_base = float(base_quantity) > base_min_order_size
+          check_quote = float(quote_quantity) > quote_min_order_size
 
           # If checks pass, place trades
           if check_base and check_quote:
 
             # Check account balance
-            account = client.private.get_account()
-            free_collateral = float(account.data["account"]["freeCollateral"])
+            account = await get_account(client)
+            free_collateral = float(account["freeCollateral"])
             print(f"Balance: {free_collateral} and minimum at {USD_MIN_COLLATERAL}")
 
             # Guard: Ensure collateral
@@ -128,7 +139,7 @@ def open_positions(client):
             )
 
             # Open Trades
-            bot_open_dict = bot_agent.open_trades()
+            bot_open_dict = await bot_agent.open_trades()
 
             # Guard: Handle failure
             if bot_open_dict == "failed":

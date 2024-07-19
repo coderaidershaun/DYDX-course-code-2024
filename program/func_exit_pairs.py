@@ -1,15 +1,15 @@
 from constants import CLOSE_AT_ZSCORE_CROSS
 from func_utils import format_number
-from func_public import get_candles_recent
 from func_cointegration import calculate_zscore
-from func_private import place_market_order
+from func_public import get_candles_recent, get_markets
+from func_private import place_market_order, get_open_positions, get_order
 import json
 import time
 
 from pprint import pprint
 
 # Manage trade exits
-def manage_trade_exits(client):
+async def manage_trade_exits(client):
 
   """
     Manage exiting open positions
@@ -31,8 +31,10 @@ def manage_trade_exits(client):
     return "complete"
 
   # Get all open positions per trading platform
-  exchange_pos = client.private.get_positions(status="OPEN")
-  all_exc_pos = exchange_pos.data["positions"]
+  exchange_pos = await get_open_positions()
+
+  # Create live position tickers list
+  all_exc_pos = exchange_pos["positions"]
   markets_live = []
   for p in all_exc_pos:
     markets_live.append(p["market"])
@@ -61,16 +63,16 @@ def manage_trade_exits(client):
     time.sleep(0.5)
 
     # Get order info m1 per exchange
-    order_m1 = client.private.get_order_by_id(position["order_id_m1"])
+    order_m1 = await get_order(client, position["order_id_m1"])
     order_market_m1 = order_m1.data["order"]["market"]
     order_size_m1 = order_m1.data["order"]["size"]
     order_side_m1 = order_m1.data["order"]["side"]
 
-    # Protect API
+    # Protect API Rate limits
     time.sleep(0.5)
 
     # Get order info m2 per exchange
-    order_m2 = client.private.get_order_by_id(position["order_id_m2"])
+    order_m2 = get_order(client, position["order_id_m2"])
     order_market_m2 = order_m2.data["order"]["market"]
     order_size_m2 = order_m2.data["order"]["size"]
     order_side_m2 = order_m2.data["order"]["side"]
@@ -92,7 +94,7 @@ def manage_trade_exits(client):
     time.sleep(0.2)
 
     # Get markets for reference of tick size
-    markets = client.public.get_markets().data
+    markets = await get_markets(client)
 
     # Protect API
     time.sleep(0.2)
@@ -152,7 +154,7 @@ def manage_trade_exits(client):
         print(">>> Closing market 1 <<<")
         print(f"Closing position for {position_market_m1}")
 
-        close_order_m1 = place_market_order(
+        (close_order_m1, order_id) = await place_market_order(
           client,
           market=position_market_m1,
           side=side_m1,
@@ -171,7 +173,7 @@ def manage_trade_exits(client):
         print(">>> Closing market 2 <<<")
         print(f"Closing position for {position_market_m2}")
 
-        close_order_m2 = place_market_order(
+        (close_order_m2, order_id) = await place_market_order(
           client,
           market=position_market_m2,
           side=side_m2,

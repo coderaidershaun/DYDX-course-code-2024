@@ -1,4 +1,5 @@
 import asyncio
+import time
 from constants import ABORT_ALL_POSITIONS, FIND_COINTEGRATED, PLACE_TRADES, MANAGE_EXITS
 from func_connections import connect_dydx
 from func_private import abort_all_positions, place_market_order, get_open_positions
@@ -19,7 +20,7 @@ async def main():
     print("")
     print("Program started...")
     print("Connecting to Client...")
-    (indexer, indexer_account, node, wallet) = await connect_dydx()
+    client = await connect_dydx()
   except Exception as e:
     print("Error connecting to client: ", e)
     send_message(f"Failed to connect to client {e}")
@@ -28,8 +29,9 @@ async def main():
   # Abort all open positions
   if ABORT_ALL_POSITIONS:
     try:
+      print("")
       print("Closing open positions...")
-      await abort_all_positions(wallet, node, indexer_account, indexer)
+      await abort_all_positions(client)
     except Exception as e:
       print("Error closing all positions: ", e)
       send_message(f"Error closing all positions {e}")
@@ -40,8 +42,9 @@ async def main():
 
     # Construct Market Prices
     try:
-      print("Fetching token market prices, please allow around 10 minutes...")
-      df_market_prices = await construct_market_prices(indexer)
+      print("")
+      print("Fetching token market prices, please allow around 5 minutes...")
+      df_market_prices = await construct_market_prices(client)
       print(df_market_prices)
     except Exception as e:
       print("Error constructing market prices: ", e)
@@ -50,6 +53,7 @@ async def main():
 
     # Store Cointegrated Pairs
     try:
+      print("")
       print("Storing cointegrated pairs...")
       stores_result = store_cointegration_results(df_market_prices)
       if stores_result != "saved":
@@ -60,27 +64,30 @@ async def main():
       send_message(f"Error saving cointegrated pairs {e}")
       exit(1)
 
-  # # Run as always on
-  # while True:
+  # Run as always on
+  while True:
 
-  #   # Manage existing positions
-  #   if MANAGE_EXITS:
-  #     try:
-  #       print("Managing exits...")
-  #       manage_trade_exits(client)
-  #     except Exception as e:
-  #       print("Error managing exiting positions: ", e)
-  #       send_message(f"Error managing exiting positions {e}")
-  #       exit(1)
+    # Manage existing positions
+    if MANAGE_EXITS:
+      try:
+        print("")
+        print("Managing exits...")
+        await manage_trade_exits(client)
+        time.sleep(1)
+      except Exception as e:
+        print("Error managing exiting positions: ", e)
+        send_message(f"Error managing exiting positions {e}")
+        exit(1)
 
-  #   # Place trades for opening positions
-  #   if PLACE_TRADES:
-  #     try:
-  #       print("Finding trading opportunities...")
-  #       open_positions(client)
-  #     except Exception as e:
-  #       print("Error trading pairs: ", e)
-  #       send_message(f"Error opening trades {e}")
-  #       exit(1)
+    # Place trades for opening positions
+    if PLACE_TRADES:
+      try:
+        print("")
+        print("Finding trading opportunities...")
+        await open_positions(client)
+      except Exception as e:
+        print("Error trading pairs: ", e)
+        send_message(f"Error opening trades {e}")
+        exit(1)
 
 asyncio.run(main())

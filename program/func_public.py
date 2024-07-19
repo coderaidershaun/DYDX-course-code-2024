@@ -1,4 +1,4 @@
-from constants import RESOLUTION
+from constants import RESOLUTION, MODE
 from func_utils import get_ISO_times
 import pandas as pd
 import numpy as np
@@ -10,7 +10,7 @@ from pprint import pprint
 ISO_TIMES = get_ISO_times()
 
 # Get Recent Candles
-async def get_candles_recent(indexer, market):
+async def get_candles_recent(client, market):
 
   # Define output
   close_prices = []
@@ -19,7 +19,7 @@ async def get_candles_recent(indexer, market):
   time.sleep(0.2)
 
   # Get Prices from DYDX V4
-  response = await indexer.markets.get_perpetual_market_candles(
+  response = await client.indexer.markets.get_perpetual_market_candles(
     market = market, 
     resolution = RESOLUTION
   )
@@ -38,7 +38,7 @@ async def get_candles_recent(indexer, market):
 
 
 # Get Historical Candles
-async def get_candles_historical(indexer, market):
+async def get_candles_historical(client, market):
 
   # Define output
   close_prices = []
@@ -54,7 +54,7 @@ async def get_candles_historical(indexer, market):
     # Protect rate limits
     time.sleep(0.2)
 
-    response = await indexer.markets.get_perpetual_market_candles(
+    response = await client.indexer.markets.get_perpetual_market_candles(
       market = market, 
       resolution = RESOLUTION, 
       from_iso = from_iso,
@@ -74,16 +74,18 @@ async def get_candles_historical(indexer, market):
 
 
 # Get Markets
-async def get_markets(indexer):
-  return await indexer.markets.get_perpetual_markets()
+async def get_markets(client):
+  return await client.indexer.markets.get_perpetual_markets()
 
 
 # Construct market prices
-async def construct_market_prices(indexer):
+async def construct_market_prices(client):
+
+  # Ensure only Testnet Assets are used
 
   # Declare variables
   tradeable_markets = []
-  markets = await get_markets()
+  markets = await get_markets(client)
 
   # Find tradeable pairs
   for market in markets["markets"].keys():
@@ -92,7 +94,7 @@ async def construct_market_prices(indexer):
       tradeable_markets.append(market)
 
   # Set initial DateFrame
-  close_prices = await get_candles_historical(indexer, tradeable_markets[0])
+  close_prices = await get_candles_historical(client, tradeable_markets[0])
   df = pd.DataFrame(close_prices)
   df.set_index("datetime", inplace=True)
 
@@ -100,11 +102,12 @@ async def construct_market_prices(indexer):
   # You can limit the amount to loop though here to save time in development
   for (i, market) in enumerate(tradeable_markets[0:]):
     print(f"Extracting prices for {i + 1} of {len(tradeable_markets)} tokens for {market}")
-    close_prices_add = await get_candles_historical(indexer, market)
+    close_prices_add = await get_candles_historical(client, market)
     df_add = pd.DataFrame(close_prices_add)
     try:
       df_add.set_index("datetime", inplace=True)
       df = pd.merge(df, df_add, how="outer", on="datetime", copy=False)
+      # print(df.head())
     except Exception as e: 
       print(f"Failed to add {market} - {e}")
     del df_add

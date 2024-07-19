@@ -7,27 +7,38 @@ from dydx_v4_client.network import make_mainnet
 from constants import INDEXER_ACCOUNT_ENDPOINT, INDEXER_ENDPOINT_MAINNET, MNEMONIC, DYDX_ADDRESS
 from func_public import get_candles_recent
 
+# Client Class
+class Client:
+  def __init__(self, indexer, indexer_account, node, wallet):
+    self.indexer = indexer
+    self.indexer_account = indexer_account
+    self.node = node
+    self.wallet = wallet
+
 # Connect to DYDX
-# Indexer Account = connection we will use to query our testnet trades
-# Indexer = connection we will use to get live mainnet data
-# node = private connection we will use to send orders etc to the testnet
 async def connect_dydx():
-  indexer = IndexerClient(host=INDEXER_ENDPOINT_MAINNET, api_timeout=5)
+  # Indexer = connection we will use to get live mainnet data
+  indexer = IndexerClient(host=INDEXER_ACCOUNT_ENDPOINT, api_timeout=5)
+
+  # Indexer Account = connection we will use to query our testnet trades
   indexer_account = IndexerClient(host=INDEXER_ACCOUNT_ENDPOINT, api_timeout=5)
+
+# node = private connection we will use to send orders etc to the testnet
   node = await NodeClient.connect(TESTNET.node)
   wallet = await Wallet.from_mnemonic(node, MNEMONIC, DYDX_ADDRESS)
-  await check_juristiction(indexer, "BTC-USD")
-  return (indexer, indexer_account, node, wallet)
+  client = Client(indexer, indexer_account, node, wallet)
+  await check_juristiction(client, "BTC-USD")
+  return client
 
 # Check Juristiction
 # DYDX no longer allows trading in certain countries and blocks API access too
 # This function serves as a check
-async def check_juristiction(indexer, market):
+async def check_juristiction(client, market):
 
   print("Checking Juristiction...")
 
   try:
-    await get_candles_recent(indexer, market)
+    await get_candles_recent(client, market)
     print(" ")
     print("--------------------------------------------------------------------------------")
     print("SUCCESS: CONNECTION WORKING")

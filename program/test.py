@@ -74,7 +74,9 @@ async def test():
   # response = await node.latest_block()
 
   # response = await indexer_account.account.get_subaccounts(DYDX_ADDRESS)
-  # response = await indexer_account.account.get_subaccount(DYDX_ADDRESS, 0)
+  response = await indexer_account.account.get_subaccount(DYDX_ADDRESS, 0)
+  print(response)
+  
   # response = await indexer_account.account.get_subaccount(DYDX_ADDRESS, 0)
   # response = await indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
 
@@ -84,7 +86,9 @@ async def test():
   #     # cancel = await node.cancel_order(wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
   #     print(f"You have an open {order['side']} order for {order['ticker']}")
 
-  order = await place_market_order(wallet, node, indexer, "ETH-USD", "BUY", 0.01, 1500, False)
-  print(order)
+  #     odr = await indexer_account.account.get_order(order['id'])
+  #     print(odr)
+
+  # order = await place_market_order(wallet, node, indexer, "ETH-USD", "BUY", 0.01, 1500, False)
 
 asyncio.run(test())

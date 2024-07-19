@@ -67,13 +67,13 @@ class BotAgent:
     }
 
   # Check order status by id
-  def check_order_status_by_id(self, order_id):
+  async def check_order_status_by_id(self, order_id):
 
     # Allow time to process
     time.sleep(2)
 
     # Check order status
-    order_status = check_order_status(self.client, order_id)
+    order_status =  await check_order_status(self.client, order_id)
 
     # Guard: If order cancelled move onto next Pair
     if order_status == "CANCELED":
@@ -84,7 +84,7 @@ class BotAgent:
     # Guard: If order not filled wait until order expiration
     if order_status != "FAILED":
       time.sleep(15)
-      order_status = check_order_status(self.client, order_id)
+      order_status = await check_order_status(self.client, order_id)
 
       # Guard: If order cancelled move onto next Pair
       if order_status == "CANCELED":
@@ -103,7 +103,7 @@ class BotAgent:
     return "live"
 
   # Open trades
-  def open_trades(self):
+  async def open_trades(self):
 
     # Print status
     print("---")
@@ -113,7 +113,7 @@ class BotAgent:
 
     # Place Base Order
     try:
-      base_order = place_market_order(
+      (base_order, order_id) = await place_market_order(
         self.client,
         market=self.market_1,
         side=self.base_side,
@@ -123,15 +123,20 @@ class BotAgent:
       )
 
       # Store the order id
-      self.order_dict["order_id_m1"] = base_order["order"]["id"]
+      self.order_dict["order_id_m1"] = order_id
       self.order_dict["order_time_m1"] = datetime.now().isoformat()
+      print("First order sent...")
     except Exception as e:
+      print(e)
       self.order_dict["pair_status"] = "ERROR"
       self.order_dict["comments"] = f"Market 1 {self.market_1}: , {e}"
       return self.order_dict
 
     # Ensure order is live before processing
-    order_status_m1 = self.check_order_status_by_id(self.order_dict["order_id_m1"])
+    print("Checking first order status...")
+    print(self.order_dict["order_id_m1"])
+    order_status_m1 = await self.check_order_status_by_id(self.order_dict["order_id_m1"])
+    print(order_status_m1)
 
     # Guard: Aborder if order failed
     if order_status_m1 != "live":
@@ -147,7 +152,7 @@ class BotAgent:
 
     # Place Quote Order
     try:
-      quote_order = place_market_order(
+      (quote_order, order_id) =  await place_market_order(
         self.client,
         market=self.market_2,
         side=self.quote_side,
@@ -157,15 +162,18 @@ class BotAgent:
       )
 
       # Store the order id
-      self.order_dict["order_id_m2"] = quote_order["order"]["id"]
+      print(order_id)
+      self.order_dict["order_id_m2"] = order_id
       self.order_dict["order_time_m2"] = datetime.now().isoformat()
+      print("Second order sent...")
     except Exception as e:
       self.order_dict["pair_status"] = "ERROR"
       self.order_dict["comments"] = f"Market 2 {self.market_2}: , {e}"
       return self.order_dict
 
     # Ensure order is live before processing
-    order_status_m2 = self.check_order_status_by_id(self.order_dict["order_id_m2"])
+    print("Checking second order status...")
+    order_status_m2 = await self.check_order_status_by_id(self.order_dict["order_id_m2"])
 
     # Guard: Aborder if order failed
     if order_status_m2 != "live":
@@ -174,7 +182,7 @@ class BotAgent:
 
       # Close order 1:
       try:
-        close_order = place_market_order(
+        (close_order, order_id) =  await place_market_order(
           self.client,
           market=self.market_1,
           side=self.quote_side,
@@ -185,7 +193,7 @@ class BotAgent:
 
         # Ensure order is live before proceeding
         time.sleep(2)
-        order_status_close_order = check_order_status(self.client, close_order["order"]["id"])
+        order_status_close_order = check_order_status(self.client, order_id)
         if order_status_close_order != "FILLED":
           print("ABORT PROGRAM")
           print("Unexpected Error")
@@ -211,6 +219,8 @@ class BotAgent:
 
     # Return success result
     else:
+      print("")
+      print("SUCCESS: LIVE PAIR")
+      print("")
       self.order_dict["pair_status"] = "LIVE"
       return self.order_dict
-      
