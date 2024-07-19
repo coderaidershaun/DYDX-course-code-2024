@@ -1,4 +1,4 @@
-from dydx_v4_client import MAX_CLIENT_ID, NodeClient, Order, OrderFlags, Wallet
+from dydx_v4_client import MAX_CLIENT_ID, Order, OrderFlags, Wallet
 from dydx_v4_client.node.market import Market
 from constants import DYDX_ADDRESS, MNEMONIC
 from datetime import datetime, timedelta
@@ -10,27 +10,28 @@ import json
 from pprint import pprint
 
 # Get existing open positions
-def is_open_positions(client_private, market):
+async def is_open_positions(indexer, market):
 
   # Protect API
   time.sleep(0.2)
 
   # Get positions
-  all_positions = client_private.get_positions(
-    market=market,
-    status="OPEN"
-  )
+  response = await indexer.account.get_subaccount(DYDX_ADDRESS, 0)
+  open_positions = response["subaccount"]["openPerpetualPositions"]
 
   # Determine if open
-  if len(all_positions.data["positions"]) > 0:
-    return True
-  else:
-    return False
+  if len(open_positions) > 0:
+    for token in open_positions.keys():
+      if token == market:
+        return True
+  
+  # Return False
+  return False
 
 
 # Check order status
-def check_order_status(client, order_id):
-  order = client.private.get_order_by_id(order_id)
+def check_order_status(node, order_id):
+  order = node.private.get_order_by_id(order_id)
   if order.data:
     if "order" in order.data.keys():
       return order.data["order"]["status"]
@@ -38,18 +39,17 @@ def check_order_status(client, order_id):
 
 
 # Place market order
-async def place_market_order(client_private, client_public, market, side, size, price, reduce_only):
+async def place_market_order(wallet, node, indexer, market, side, size, price, reduce_only):
 
   # Initialize
-  wallet = await Wallet.from_mnemonic(client_private, MNEMONIC, DYDX_ADDRESS)
-  current_block = await client_private.latest_block_height()
-  market = Market((await client_public.markets.get_perpetual_markets(market))["markets"][market])
+  current_block = await node.latest_block_height()
+  market = Market((await indexer.markets.get_perpetual_markets(market))["markets"][market])
   order_id = market.order_id(DYDX_ADDRESS, 0, random.randint(0, MAX_CLIENT_ID), OrderFlags.SHORT_TERM)
   good_til_block = current_block + 1 + 10
 
   # Place Market Order
   print("Placing order...")
-  place = await client_private.place_order(
+  place = await node.place_order(
     wallet,
     market.order(
       order_id,
@@ -66,52 +66,61 @@ async def place_market_order(client_private, client_public, market, side, size, 
   return place
 
 
+# Get Open Orders
+async def cancel_all_orders(wallet, node, indexer_account):
+  orders = await indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
+  if len(orders) > 0:
+    for order in orders:
+      # cancel = await node.cancel_order(wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
+      print(f"You have an open {order['side']} order for {order['ticker']}. Please cancel via the DYDX trading dashboard before launching bot")
+    exit(1)
+
+
 # Abort all open positions
-def abort_all_positions(client_private, client_public):
+async def abort_all_positions(wallet, node, indexer_account, indexer):
   
   # Cancel all orders
-  client_private.cancel_all_orders()
+  await cancel_all_orders(wallet, node, indexer_account)
 
   # Protect API
   time.sleep(0.5)
 
   # Get markets for reference of tick size
-  markets = client_public.get_markets().data
+  markets = indexer.get_markets().data
 
   # Protect API
   time.sleep(0.5)
 
   # Get all open positions
-  positions = client_private.get_positions(status="OPEN")
-  all_positions = positions.data["positions"]
+  positions = get_open_positions(indexer_account)
 
   # Handle open positions
   close_orders = []
-  if len(all_positions) > 0:
+  if len(positions) > 0:
 
     # Loop through each position
-    for position in all_positions:
+    for pos in positions:
 
       # Determine Market
-      market = position["market"]
+      market = pos["market"]
 
       # Determine Side
       side = "BUY"
-      if position["side"] == "LONG":
+      if pos["side"] == "LONG":
         side = "SELL"
 
       # Get Price
-      price = float(position["entryPrice"])
+      price = float(pos["entryPrice"])
       accept_price = price * 1.7 if side == "BUY" else price * 0.3
       tick_size = markets["markets"][market]["tickSize"]
       accept_price = format_number(accept_price, tick_size)
 
       # Place order to close
       order = place_market_order(
-        client_private,
+        node,
         market,
         side,
-        position["sumOpen"],
+        pos["sumOpen"],
         accept_price,
         True
       )
@@ -132,5 +141,6 @@ def abort_all_positions(client_private, client_public):
 
 
 # Get Open Positions
-async def get_open_positions(client_private):
-  response = await client_private.account.get_subaccounts(DYDX_ADDRESS)
+async def get_open_positions(indexer):
+  response = await indexer.account.get_subaccount(DYDX_ADDRESS, 0)
+  return response["subaccount"]["openPerpetualPositions"]

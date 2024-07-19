@@ -19,21 +19,21 @@ async def main():
     print("")
     print("Program started...")
     print("Connecting to Client...")
-    (client_public, client_public_testnet, client_private_testnet) = await connect_dydx()
+    (indexer, indexer_account, node, wallet) = await connect_dydx()
   except Exception as e:
     print("Error connecting to client: ", e)
     send_message(f"Failed to connect to client {e}")
     exit(1)
 
-  # # Abort all open positions
-  # if ABORT_ALL_POSITIONS:
-  #   try:
-  #     print("Closing all positions...")
-  #     close_orders = abort_all_positions(client_private_testnet, client_public)
-  #   except Exception as e:
-  #     print("Error closing all positions: ", e)
-  #     send_message(f"Error closing all positions {e}")
-  #     exit(1)
+  # Abort all open positions
+  if ABORT_ALL_POSITIONS:
+    try:
+      print("Checking for open positions...")
+      await abort_all_positions(wallet, node, indexer_account, indexer)
+    except Exception as e:
+      print("Error closing all positions: ", e)
+      send_message(f"Error closing all positions {e}")
+      exit(1)
 
   # Find Cointegrated Pairs
   if FIND_COINTEGRATED:
@@ -41,7 +41,7 @@ async def main():
     # Construct Market Prices
     try:
       print("Fetching token market prices, please allow around 10 minutes...")
-      df_market_prices = await construct_market_prices(client_public)
+      df_market_prices = await construct_market_prices(indexer)
       print(df_market_prices)
     except Exception as e:
       print("Error constructing market prices: ", e)

@@ -31,6 +31,12 @@ USD_MIN_COLLATERAL = 1880
 # Thresholds - Closing
 CLOSE_AT_ZSCORE_CROSS = True
 
+# Endpoint for Account Queries on Testnet
+INDEXER_ENDPOINT_TESTNET = "https://indexer.v4testnet.dydx.exchange"
+INDEXER_ENDPOINT_MAINNET = "https://indexer.dydx.trade"
+INDEXER_ACCOUNT_ENDPOINT = INDEXER_ENDPOINT_MAINNET if MODE == "PRODUCTION" else INDEXER_ENDPOINT_TESTNET 
+
+# Environment Variables
 DYDX_ADDRESS = config("DYDX_ADDRESS")
 SECRET_PHRASE = config("SECRET_PHRASE")
 MNEMONIC = (SECRET_PHRASE)
