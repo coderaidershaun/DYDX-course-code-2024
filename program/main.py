@@ -28,7 +28,7 @@ async def main():
   # Abort all open positions
   if ABORT_ALL_POSITIONS:
     try:
-      print("Checking for open positions...")
+      print("Closing open positions...")
       await abort_all_positions(wallet, node, indexer_account, indexer)
     except Exception as e:
       print("Error closing all positions: ", e)

@@ -73,13 +73,17 @@ async def get_candles_historical(indexer, market):
   return close_prices
 
 
+# Get Markets
+async def get_markets(indexer):
+  return await indexer.markets.get_perpetual_markets()
+
+
 # Construct market prices
 async def construct_market_prices(indexer):
 
   # Declare variables
   tradeable_markets = []
-  response = await indexer.markets.get_perpetual_markets()
-  markets = response
+  markets = await get_markets()
 
   # Find tradeable pairs
   for market in markets["markets"].keys():

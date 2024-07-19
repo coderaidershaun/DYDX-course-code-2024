@@ -11,6 +11,32 @@ from dydx_v4_client.wallet import Wallet
 
 MARKET_ID = "ETH-USD"
 
+async def place_market_order(wallet, node, indexer, market, side, size, price, reduce_only):
+
+  # Initialize
+  current_block = await node.latest_block_height()
+  market = Market((await indexer.markets.get_perpetual_markets(market))["markets"][market])
+  order_id = market.order_id(DYDX_ADDRESS, 0, random.randint(0, MAX_CLIENT_ID), OrderFlags.SHORT_TERM)
+  good_til_block = current_block + 1 + 10
+
+  # Place Market Order
+  print("Placing order...")
+  place = await node.place_order(
+    wallet,
+    market.order(
+      order_id,
+      side = Order.Side.SIDE_BUY if side == "BUY" else Order.Side.SIDE_SELL,
+      size = size,
+      price = price,
+      time_in_force = Order.TIME_IN_FORCE_UNSPECIFIED,
+      reduce_only = reduce_only,
+      good_til_block = good_til_block
+    ),
+  )
+
+  # Return result
+  return place
+
 async def test():
   indexer_account = IndexerClient(host=INDEXER_ACCOUNT_ENDPOINT, api_timeout=5)
   indexer = IndexerClient(host=INDEXER_ENDPOINT_MAINNET, api_timeout=5)
@@ -52,12 +78,13 @@ async def test():
   # response = await indexer_account.account.get_subaccount(DYDX_ADDRESS, 0)
   # response = await indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
 
-  orders = await indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
-  if len(orders) > 0:
-    for order in orders:
-      # cancel = await node.cancel_order(wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
-      print(f"You have an open {order['side']} order for {order['ticker']}")
+  # orders = await indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
+  # if len(orders) > 0:
+  #   for order in orders:
+  #     # cancel = await node.cancel_order(wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
+  #     print(f"You have an open {order['side']} order for {order['ticker']}")
 
-  # print(cancel)
+  order = await place_market_order(wallet, node, indexer, "ETH-USD", "BUY", 0.01, 1500, False)
+  print(order)
 
 asyncio.run(test())

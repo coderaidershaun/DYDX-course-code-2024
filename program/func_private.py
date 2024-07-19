@@ -3,6 +3,7 @@ from dydx_v4_client.node.market import Market
 from constants import DYDX_ADDRESS, MNEMONIC
 from datetime import datetime, timedelta
 from func_utils import format_number
+from func_public import get_markets
 import random
 import time
 import json
@@ -47,23 +48,32 @@ async def place_market_order(wallet, node, indexer, market, side, size, price, r
   order_id = market.order_id(DYDX_ADDRESS, 0, random.randint(0, MAX_CLIENT_ID), OrderFlags.SHORT_TERM)
   good_til_block = current_block + 1 + 10
 
+  # Set Time In Force
+  time_in_force = Order.TIME_IN_FORCE_UNSPECIFIED
+  if reduce_only:
+    time_in_force = Order.TIME_IN_FORCE_FILL_OR_KILL
+
   # Place Market Order
   print("Placing order...")
-  place = await node.place_order(
+  order = await node.place_order(
     wallet,
     market.order(
       order_id,
       side = Order.Side.SIDE_BUY if side == "BUY" else Order.Side.SIDE_SELL,
-      size = size,
-      price = price,
-      time_in_force = Order.TIME_IN_FORCE_UNSPECIFIED,
+      size = float(size),
+      price = float(price),
+      time_in_force = time_in_force,
       reduce_only = reduce_only,
       good_til_block = good_til_block
     ),
   )
 
+  # Print something if error
+  if "code" in str(order):
+    print(order)
+
   # Return result
-  return place
+  return order
 
 
 # Get Open Orders
@@ -72,7 +82,7 @@ async def cancel_all_orders(wallet, node, indexer_account):
   if len(orders) > 0:
     for order in orders:
       # cancel = await node.cancel_order(wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
-      print(f"You have an open {order['side']} order for {order['ticker']}. Please cancel via the DYDX trading dashboard before launching bot")
+      print(f"You have an open {order['side']} pending order for {order['ticker']}. Please cancel via the DYDX trading dashboard before launching bot")
     exit(1)
 
 
@@ -86,20 +96,23 @@ async def abort_all_positions(wallet, node, indexer_account, indexer):
   time.sleep(0.5)
 
   # Get markets for reference of tick size
-  markets = indexer.get_markets().data
+  markets = await get_markets(indexer)
 
   # Protect API
   time.sleep(0.5)
 
   # Get all open positions
-  positions = get_open_positions(indexer_account)
+  positions = await get_open_positions(indexer_account)
 
   # Handle open positions
   close_orders = []
   if len(positions) > 0:
 
     # Loop through each position
-    for pos in positions:
+    for item in positions.keys():
+      
+      # Get Position
+      pos = positions[item]
 
       # Determine Market
       market = pos["market"]
@@ -116,8 +129,8 @@ async def abort_all_positions(wallet, node, indexer_account, indexer):
       accept_price = format_number(accept_price, tick_size)
 
       # Place order to close
-      order = place_market_order(
-        node,
+      order = await place_market_order(
+        wallet, node, indexer, 
         market,
         side,
         pos["sumOpen"],
