@@ -83,11 +83,19 @@ async def place_market_order(client, market, side, size, price, reduce_only):
     ),
   )
 
-  # Get Order ID
+  # Get Recent Orders
+  # We do this as in the current V4 version at the time of developing this, the order response does not return the order number
   time.sleep(0.5)
   orders = await client.indexer_account.account.get_subaccount_orders(
-    DYDX_ADDRESS, 0, ticker = ticker, return_latest_orders = "true", good_til_block_before_or_at = good_til_block
+    DYDX_ADDRESS, 
+    0, 
+    ticker = 
+    ticker, 
+    return_latest_orders = "true", 
+    good_til_block_before_or_at = good_til_block
   )
+
+  # Sort Recent Orders and extract latest order id for order
   sorted_orders = sorted(orders, key=lambda x: (x.get('createdAtHeight') is None, -int(x.get('createdAtHeight', '0')))) #16986914
   order_id = sorted_orders[0]["id"]
   print(f"Order id: {order_id}")

@@ -1,10 +1,7 @@
-from decouple import config
-from dydx_v4_client import MAX_CLIENT_ID, NodeClient, Order, OrderFlags, Wallet
+from dydx_v4_client import NodeClient, Wallet
 from dydx_v4_client.indexer.rest.indexer_client import IndexerClient
-from dydx_v4_client.network import TESTNET, Network
-from dydx_v4_client.node.market import Market
-from dydx_v4_client.network import make_mainnet
-from constants import INDEXER_ACCOUNT_ENDPOINT, INDEXER_ENDPOINT_MAINNET, MNEMONIC, DYDX_ADDRESS
+from dydx_v4_client.network import TESTNET
+from constants import INDEXER_ACCOUNT_ENDPOINT, INDEXER_ENDPOINT_MAINNET, MNEMONIC, DYDX_ADDRESS, MARKET_DATA_MODE
 from func_public import get_candles_recent
 
 # Client Class
@@ -17,13 +14,17 @@ class Client:
 
 # Connect to DYDX
 async def connect_dydx():
-  # Indexer = connection we will use to get live mainnet data
-  indexer = IndexerClient(host=INDEXER_ACCOUNT_ENDPOINT, api_timeout=5)
+
+  # Determine market data endpoint
+  market_data_endpoint = INDEXER_ENDPOINT_MAINNET if MARKET_DATA_MODE != "TESTNET" else INDEXER_ACCOUNT_ENDPOINT
+
+  # Indexer = connection we will use to get live mainnet data if using INDEXER_ENDPOINT_MAINNET, else we will use testnet
+  indexer = IndexerClient(host=market_data_endpoint, api_timeout=5)
 
   # Indexer Account = connection we will use to query our testnet trades
   indexer_account = IndexerClient(host=INDEXER_ACCOUNT_ENDPOINT, api_timeout=5)
 
-# node = private connection we will use to send orders etc to the testnet
+  # node = private connection we will use to send orders etc to the testnet
   node = await NodeClient.connect(TESTNET.node)
   wallet = await Wallet.from_mnemonic(node, MNEMONIC, DYDX_ADDRESS)
   client = Client(indexer, indexer_account, node, wallet)
