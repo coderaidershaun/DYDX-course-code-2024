@@ -31,7 +31,7 @@ async def manage_trade_exits(client):
     return "complete"
 
   # Get all open positions per trading platform
-  exchange_pos = await get_open_positions()
+  exchange_pos = await get_open_positions(client)
 
   # Create live position tickers list
   all_exc_pos = exchange_pos["positions"]
