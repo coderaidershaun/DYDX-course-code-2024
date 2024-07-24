@@ -129,6 +129,8 @@ async def cancel_all_orders(client):
   if len(orders) > 0:
     for order in orders:
       await cancel_order(client, order["id"])
+      print("You have open orders. Please check the Dashboard to ensure they are cancelled as testnet order requests appear not to be cancelling")
+      exit(1)
 
 
 # Abort all open positions
