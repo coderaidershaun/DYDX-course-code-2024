@@ -1,4 +1,4 @@
-from func_private import place_market_order, check_order_status
+from func_private import place_market_order, check_order_status, cancel_order
 from datetime import datetime
 from func_messaging import send_message
 import time
@@ -94,9 +94,9 @@ class BotAgent:
 
       # Guard: If not filled, cancel order
       if order_status != "FILLED":
-        self.client.private.cancel_order(order_id=order_id)
+        await cancel_order(self.client, order_id)
         self.order_dict["pair_status"] = "ERROR"
-        print(f"{self.market_1} vs {self.market_2} - Order error...")
+        print(f"{self.market_1} vs {self.market_2} - Order error. Cancellation request sent, please check open orders..")
         return "error"
 
     # Return live

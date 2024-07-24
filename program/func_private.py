@@ -1,5 +1,5 @@
 from dydx_v4_client import MAX_CLIENT_ID, Order, OrderFlags
-from dydx_v4_client.node.market import Market
+from dydx_v4_client.node.market import Market, since_now
 from constants import DYDX_ADDRESS
 from func_utils import format_number
 from func_public import get_markets
@@ -8,6 +8,22 @@ import time
 import json
 
 from pprint import pprint
+
+# Cancel Order
+async def cancel_order(client, order_id):
+  order = await get_order(client, order_id)
+  market = Market((await client.indexer.markets.get_perpetual_markets(order["ticker"]))["markets"][order["ticker"]])
+  market_order_id = market.order_id(DYDX_ADDRESS, 0, random.randint(0, MAX_CLIENT_ID), OrderFlags.SHORT_TERM)
+  market_order_id.client_id = int(order["clientId"])
+  market_order_id.clob_pair_id = int(order["clobPairId"])
+  current_block = await client.node.latest_block_height()
+  good_til_block = current_block + 1 + 10
+  cancel = await client.node.cancel_order(
+    client.wallet,
+    market_order_id,
+    good_til_block=good_til_block
+  )
+  print(f"Attempted to cancel order for: {order["ticker"]}. Please check dashboard to ensure cancelled.")
 
 # Get Account
 async def get_account(client):
@@ -112,9 +128,7 @@ async def cancel_all_orders(client):
   orders = await client.indexer_account.account.get_subaccount_orders(DYDX_ADDRESS, 0, status = "OPEN")
   if len(orders) > 0:
     for order in orders:
-      # cancel = await client.node.cancel_order(client.wallet, order["id"]) # Not yet working: Pending fix from DYDX on library
-      print(f"You have an open {order['side']} pending order for {order['ticker']}. Please cancel via the DYDX trading dashboard before launching bot")
-    exit(1)
+      await cancel_order(client, order["id"])
 
 
 # Abort all open positions

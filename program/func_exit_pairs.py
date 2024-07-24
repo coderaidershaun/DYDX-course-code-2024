@@ -34,9 +34,8 @@ async def manage_trade_exits(client):
   exchange_pos = await get_open_positions(client)
 
   # Create live position tickers list
-  all_exc_pos = exchange_pos["positions"]
   markets_live = []
-  for p in all_exc_pos:
+  for p in exchange_pos.keys():
     markets_live.append(p["market"])
 
   # Protect API
