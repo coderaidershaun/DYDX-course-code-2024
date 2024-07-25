@@ -193,7 +193,7 @@ class BotAgent:
 
         # Ensure order is live before proceeding
         time.sleep(2)
-        order_status_close_order = check_order_status(self.client, order_id)
+        order_status_close_order = await check_order_status(self.client, order_id)
         if order_status_close_order != "FILLED":
           print("ABORT PROGRAM")
           print("Unexpected Error")
