@@ -23,6 +23,7 @@ async def cancel_order(client, order_id):
     market_order_id,
     good_til_block=good_til_block
   )
+  print(cancel)
   print(f"Attempted to cancel order for: {order["ticker"]}. Please check dashboard to ensure cancelled.")
 
 # Get Account

@@ -5,16 +5,16 @@ from decouple import config
 MARKET_DATA_MODE = "TESTNET" # vs "MAINNET"
 
 # Close all open positions and orders
-ABORT_ALL_POSITIONS = True
+ABORT_ALL_POSITIONS = False
 
 # Find Cointegrated Pairs
-FIND_COINTEGRATED = True
+FIND_COINTEGRATED = False
 
 # Manage Exits
 MANAGE_EXITS = True
 
 # Place Trades
-PLACE_TRADES = True
+PLACE_TRADES = False
 
 # Resolution
 RESOLUTION = "1HOUR"
