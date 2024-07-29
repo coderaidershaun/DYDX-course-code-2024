@@ -152,12 +152,16 @@ async def open_positions(client):
               bot_agents.append(bot_open_dict)
               del(bot_open_dict)
 
+              # Save trade
+              with open("bot_agents.json", "w") as f:
+                json.dump(bot_agents, f)
+
               # Confirm live status in print
               print("Trade status: Live")
               print("---")
 
   # Save agents
   print(f"Success: Manage open trades checked")
-  if len(bot_agents) > 0:
-    with open("bot_agents.json", "w") as f:
-      json.dump(bot_agents, f)
+  # if len(bot_agents) > 0:
+  #   with open("bot_agents.json", "w") as f:
+  #     json.dump(bot_agents, f)

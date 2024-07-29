@@ -1,11 +1,13 @@
 from dydx_v4_client import MAX_CLIENT_ID, Order, OrderFlags
 from dydx_v4_client.node.market import Market, since_now
+from dydx_v4_client.indexer.rest.constants import OrderType
 from constants import DYDX_ADDRESS
 from func_utils import format_number
 from func_public import get_markets
 import random
 import time
 import json
+from datetime import datetime
 
 from pprint import pprint
 
@@ -83,17 +85,16 @@ async def place_market_order(client, market, side, size, price, reduce_only):
 
   # Set Time In Force
   time_in_force = Order.TIME_IN_FORCE_UNSPECIFIED
-  if reduce_only:
-    time_in_force = Order.TIME_IN_FORCE_FILL_OR_KILL
 
   # Place Market Order
   order = await client.node.place_order(
     client.wallet,
     market.order(
       market_order_id,
+      order_type=OrderType.MARKET,
       side = Order.Side.SIDE_BUY if side == "BUY" else Order.Side.SIDE_SELL,
       size = float(size),
-      price = float(price),
+      price = float(price), # Adding price in case you wish to flip order type to LIMIT. Else price can = 0.
       time_in_force = time_in_force,
       reduce_only = reduce_only,
       good_til_block = good_til_block
@@ -102,20 +103,30 @@ async def place_market_order(client, market, side, size, price, reduce_only):
 
   # Get Recent Orders
   # We do this as in the current V4 version at the time of developing this, the order response does not return the order number
-  time.sleep(0.5)
+  time.sleep(1.5)
   orders = await client.indexer_account.account.get_subaccount_orders(
     DYDX_ADDRESS, 
     0, 
-    ticker = 
     ticker, 
-    return_latest_orders = "true", 
-    good_til_block_before_or_at = good_til_block
+    return_latest_orders = "true",
   )
 
-  # Sort Recent Orders and extract latest order id for order
-  sorted_orders = sorted(orders, key=lambda x: (x.get('createdAtHeight') is None, -int(x.get('createdAtHeight', '0')))) #16986914
-  order_id = sorted_orders[0]["id"]
-  print(f"Order id: {order_id}")
+  # Get latest order id
+  order_id = ""
+  for order in orders:
+    client_id = int(order["clientId"])
+    clob_pair_id = int(order["clobPairId"])
+    order["createdAtHeight"] = int(order["createdAtHeight"])
+    if client_id == market_order_id.client_id and clob_pair_id == market_order_id.clob_pair_id:
+      order_id = order["id"]
+      break
+
+  # Ensure latest order
+  if order_id == "":
+    sorted_orders = sorted(orders, key=lambda x: x["createdAtHeight"], reverse=True)
+    pprint("last order:", sorted_orders[0])
+    print("Warning: Unable to detect latest order. Please check dashboard")
+    exit(1)
 
   # Print something if error returned
   if "code" in str(order):
